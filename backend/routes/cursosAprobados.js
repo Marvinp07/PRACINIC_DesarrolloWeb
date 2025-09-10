@@ -1,4 +1,5 @@
 import express from "express";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../config/database.js";
 
@@ -84,4 +85,7 @@ router.post('/registro', async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
+
+export default router;
+
 
