@@ -98,7 +98,7 @@ router.get("/obtenerPublicaciones", async (req, res) => {
     try {
         const [rows] = await pool.query(`            
             SELECT p.ID_PUBLI, p.MENSAJE, p.FECHA,
-            u.NOMBRES as estudiante, c.NOMBRE_CURSO, pr.NOMBRES AS profesor
+            u.NOMBRES as estudiante, c.NOMBRE_CURSO, pr.NOMBRES AS Nombre, pr.APELLIDOS AS Apellido
             FROM Publicaciones p
             JOIN Usuarios u ON p.USUARIOS_ID_USUARIO= u.ID_USUARIO
             LEFT JOIN Cursos c on p.CURSOS_ID_CURSO = c.ID_CURSO
@@ -111,23 +111,23 @@ router.get("/obtenerPublicaciones", async (req, res) => {
 });
 
 // OBTENER LAS PUBLICACIONES DE UN USUARIO
-router.get("/usuarios/:userId", verifyToken, async (req, res) => {
+router.get("/usuarios/:registroAcademico", verifyToken, async (req, res) => {
     try {
-        const { userId } = req.params;
+        const { registroAcademico } = req.params;
 
         // Validar que el userId sea un número válido
-        if (isNaN(userId) || userId <= 0) {
+        if (isNaN(registroAcademico) || registroAcademico <= 0) {
             return res.status(400).json({ 
-                error: 'ID de usuario inválido' 
+                error: 'Registro académico del usuario inválido' 
             });
         }
 
-        const [userExists] = await pool.execute(
-            'SELECT ID_USUARIO FROM USUARIOS WHERE ID_USUARIO = ?',
-            [userId]
+        const [registroExists] = await pool.execute(
+            'SELECT REGISTRO_ACADEMICO FROM USUARIOS WHERE REGISTRO_ACADEMICO = ?',
+            [registroAcademico]
         );
 
-        if (userExists.length === 0) {
+        if (registroExists.length === 0) {
             return res.status(404).json({
                 error: 'Usuario no encontrado'
             });
@@ -150,21 +150,12 @@ router.get("/usuarios/:userId", verifyToken, async (req, res) => {
             JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
             LEFT JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
             LEFT JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
-            WHERE p.USUARIOS_ID_USUARIO = ?
+            WHERE u.REGISTRO_ACADEMICO = ?
             ORDER BY p.FECHA DESC
-        `, [userId]);
-
-        // Corregir el WHERE para que use USUARIOS_ID_USUARIO también aquí
-        const [countResult] = await pool.execute(
-            'SELECT COUNT(*) as total FROM PUBLICACIONES WHERE USUARIOS_ID_USUARIO = ?',
-            [userId]
-        );
-
-        const totalPublicaciones = countResult[0].total;
+        `, [registroAcademico]);
 
         res.json({
             message: 'Publicaciones obtenidas exitosamente',
-            total: totalPublicaciones,
             publicaciones: publicaciones.map(pub => ({
                 id: pub.ID_PUBLI,
                 mensaje: pub.MENSAJE,
@@ -192,27 +183,14 @@ router.get("/usuarios/:userId", verifyToken, async (req, res) => {
     }
 });
 
-router.get("/cursos/:cursoId", verifyToken, async (req, res) => {
+router.get("/cursos/:cursoNombre", verifyToken, async (req, res) => {
     try {
-        const { cursoId } = req.params;
-
-        // Validar que el cursoId sea un número válido
-        if (isNaN(cursoId) || cursoId <= 0) {
-            return res.status(400).json({ 
-                error: 'ID de curso inválido' 
-            });
-        }
+        const { cursoNombre } = req.params;
 
         const [cursoExists] = await pool.execute(
-            'SELECT ID_CURSO FROM CURSOS WHERE ID_CURSO = ?',
-            [cursoId]
+            'SELECT NOMBRE_CURSO FROM CURSOS WHERE NOMBRE_CURSO = ?',
+            [cursoNombre]
         );
-
-        if (cursoExists.length === 0) {
-            return res.status(404).json({
-                error: 'Curso no encontrado'
-            });
-        }
 
         const [publicaciones] = await pool.execute(`
             SELECT 
@@ -227,21 +205,12 @@ router.get("/cursos/:cursoId", verifyToken, async (req, res) => {
             FROM PUBLICACIONES p
             JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
             LEFT JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
-            WHERE p.CURSOS_ID_CURSO = ?
+            WHERE c.NOMBRE_CURSO = ?
             ORDER BY p.FECHA DESC
-        `, [cursoId]);
-
-        // Corregir el WHERE para que use USUARIOS_ID_USUARIO también aquí
-        const [countResult] = await pool.execute(
-            'SELECT COUNT(*) as total FROM PUBLICACIONES WHERE CURSOS_ID_CURSO = ?',
-            [cursoId]
-        );
-
-        const totalPublicaciones = countResult[0].total;
+        `, [cursoNombre]);
 
         res.json({
             message: 'Publicaciones obtenidas exitosamente',
-            total: totalPublicaciones,
             curso: cursoExists[0],
             publicaciones: publicaciones.map(pub => ({
                 id: pub.ID_PUBLI,
@@ -265,25 +234,29 @@ router.get("/cursos/:cursoId", verifyToken, async (req, res) => {
     }
 });
 
-router.get("/profesores/:profesorId", verifyToken, async (req, res) => {
+router.get("/profesores/:profesorNombre/:profesorApellido", verifyToken, async (req, res) => {
     try {
-        const { profesorId } = req.params;
+        const { profesorNombre, profesorApellido } = req.params;
 
-        // Validar que el cursoId sea un número válido
-        if (isNaN(profesorId) || profesorId <= 0) {
-            return res.status(400).json({ 
-                error: 'ID de profesor inválido' 
+        const [profesorNombreExists] = await pool.execute(
+            'SELECT NOMBRES FROM PROFESORES WHERE NOMBRES = ?',
+            [profesorNombre]
+        );
+
+        const [profesorApellidoExists] = await pool.execute(
+            'SELECT APELLIDOS FROM PROFESORES WHERE APELLIDOS = ?',
+            [profesorApellido]
+        );
+
+        if (profesorNombreExists.length === 0) {
+            return res.status(404).json({
+                error: 'Profesor no encontrado con ese nombre'
             });
         }
 
-        const [profesorExists] = await pool.execute(
-            'SELECT ID_PROFESOR FROM PROFESORES WHERE ID_PROFESOR = ?',
-            [profesorId]
-        );
-
-        if (profesorExists.length === 0) {
+        if (profesorApellidoExists.length === 0) {
             return res.status(404).json({
-                error: 'Profesor no encontrado'
+                error: 'Profesor no encontrado con ese apellido'
             });
         }
 
@@ -301,21 +274,12 @@ router.get("/profesores/:profesorId", verifyToken, async (req, res) => {
             FROM PUBLICACIONES p
             JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
             LEFT JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
-            WHERE p.PROFESORES_ID_PROFESOR = ?
+            WHERE pr.NOMBRES = ? OR pr.APELLIDOS = ?
             ORDER BY p.FECHA DESC
-        `, [profesorId]);
-
-        const [countResult] = await pool.execute(
-            'SELECT COUNT(*) as total FROM PUBLICACIONES WHERE PROFESORES_ID_PROFESOR = ?',
-            [profesorId]
-        );
-
-        const totalPublicaciones = countResult[0].total;
+        `, [profesorNombre, profesorApellido]);
 
         res.json({
             message: 'Publicaciones obtenidas exitosamente',
-            total: totalPublicaciones,
-            profesor: profesorExists[0],
             publicaciones: publicaciones.map(pub => ({
                 id: pub.ID_PUBLI,
                 mensaje: pub.MENSAJE,
