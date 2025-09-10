@@ -1,8 +1,8 @@
 import './App.css';
 import Login from './components/Login';
 import Portal from './components/Portal';
-import ErrorPage from './components/ErrorPage';
 import Registrar from './components/Registrar';
+import Olvidar from './components/Olvidar'; 
 
 import {BrowserRouter, Routes, Route} from 'react-router-dom';
 
@@ -12,8 +12,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />}/>
           <Route path="/portal" element={<Portal />}/>
-          <Route path="/error" element={<ErrorPage />}/>
           <Route path="/registrar" element={<Registrar />}/>
+          <Route path="/olvidar" element={<Olvidar />}/>
         </Routes>
       </BrowserRouter>  
 );
