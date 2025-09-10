@@ -27,7 +27,7 @@ export default function Login() {
         
     const data = await res.json();
     if(res.ok){
-      localStorage.setItem('registro_academico', JSON.stringify(data)); //Para guardar los datos y poder manejarlos despues
+      localStorage.setItem('sesion', JSON.stringify(data)); //Para guardar los datos y poder manejarlos despues
       navigate('/portal');
     }else{
       agregarError(data.error || "Ocurrió un error");

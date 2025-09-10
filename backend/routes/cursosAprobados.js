@@ -131,9 +131,9 @@ router.get('/aprobados/:id', async (req, res) => {
             });
         }
 
-        res.status(201).json({
+        res.status(200).json({
             message: 'Cursos Aprobados',
-            data: cursoAprobadoInfo[0]
+            data: cursoAprobadoInfo
         });
 
     } catch (error) {

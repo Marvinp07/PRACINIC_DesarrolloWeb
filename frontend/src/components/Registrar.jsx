@@ -30,7 +30,7 @@ export default function Registrar() {
 
         if (res.ok ){
         const data = res
-        localStorage.setItem('nombres',data.nombres);
+        //localStorage.setItem('nombres',data.nombres);
         console.log(data.message);
         navigate('/');
         }else{
