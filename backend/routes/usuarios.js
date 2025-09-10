@@ -224,29 +224,46 @@ router.put('/perfil', verifyToken, async (req, res) => {
     try {
         const { nombres, apellidos, correo } = req.body;
 
-        if (!nombres || !apellidos || !correo) {
-            return res.status(400).json({ 
-                error: 'Nombres, apellidos y correo son obligatorios' 
+        if (!nombres && !apellidos && !correo) {
+            return res.status(400).json({
+                error: 'Debes enviar al menos un campo para actualizar'
             });
         }
 
-        // Verificar que el correo no esté siendo usado por otro usuario
-        const [existingUser] = await pool.execute(
-            'SELECT * FROM USUARIOS WHERE CORREO = ? AND ID_USUARIO != ?',
-            [correo, req.userId]
-        );
+        if (correo) {
+            const [existingUser] = await pool.execute(
+                'SELECT * FROM USUARIOS WHERE CORREO = ? AND ID_USUARIO != ?',
+                [correo, req.userId]
+            );
 
-        if (existingUser.length > 0) {
-            return res.status(409).json({ 
-                error: 'El correo ya está siendo usado por otro usuario' 
-            });
+            if (existingUser.length > 0) {
+                return res.status(409).json({
+                    error: 'El correo ya está siendo usado por otro usuario'
+                });
+            }
         }
 
-        // Actualizar datos
-        await pool.execute(
-            'UPDATE USUARIOS SET NOMBRES = ?, APELLIDOS = ?, CORREO = ? WHERE ID_USUARIO = ?',
-            [nombres, apellidos, correo, req.userId]
-        );
+        const fields = [];
+        const values = [];
+
+        if (nombres) {
+            fields.push('NOMBRES = ?');
+            values.push(nombres);
+        }
+        if (apellidos) {
+            fields.push('APELLIDOS = ?');
+            values.push(apellidos);
+        }
+        if (correo) {
+            fields.push('CORREO = ?');
+            values.push(correo);
+        }
+
+        values.push(req.userId);
+
+        const sql = `UPDATE USUARIOS SET ${fields.join(', ')} WHERE ID_USUARIO = ?`;
+
+        await pool.execute(sql, values);
 
         res.json({
             message: 'Perfil actualizado exitosamente'
@@ -258,7 +275,6 @@ router.put('/perfil', verifyToken, async (req, res) => {
     }
 });
 
-// OBTENER TODOS LOS USUARIOS (para pruebas - quitar en producción)
 router.get('/', verifyToken, async (req, res) => {
     try {
         const [users] = await pool.execute(
