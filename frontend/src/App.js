@@ -3,7 +3,8 @@ import Login from './components/Login';
 import Portal from './components/Portal';
 import Registrar from './components/Registrar';
 import Olvidar from './components/Olvidar'; 
-import Perfil from './components/Perfil';  
+import Perfil from './components/Perfil'; 
+import Publicacion from './components/Publicacion';  
 
 import {BrowserRouter, Routes, Route} from 'react-router-dom';
 
@@ -16,6 +17,8 @@ function App() {
           <Route path="/registrar" element={<Registrar />}/>
           <Route path="/olvidar" element={<Olvidar />}/>
           <Route path="/perfil" element={<Perfil />}/>
+          <Route path="/publicacion" element={<Publicacion />}/>
+          
         </Routes>
       </BrowserRouter>  
 );

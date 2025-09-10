@@ -23,11 +23,11 @@ export default function ProfilePanel() {
             const registro = sesion?.usuario?.registro_academico;
             const token = sesion?.token;
 
-                const res = await fetch(`http://localhost:5000/api/usuarios/buscar/${registro}`, {
+            const res = await fetch(`http://localhost:5000/api/usuarios/buscar/${registro}`, {
                 method: 'GET',
                 headers: {
                     Authorization: `Bearer ${token}`
-                }
+            }
             });
 
             const data = await res.json();

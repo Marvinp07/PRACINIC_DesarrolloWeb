@@ -6,7 +6,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     try {
         const [cursos] = await pool.execute(
-            'SELECT * FROM CURSOS ORDER BY NOMBRE_CURSO ASC'
+            'SELECT DISTINCT NOMBRE_CURSO FROM CURSOS ORDER BY NOMBRE_CURSO ASC'
         );
 
         res.json({

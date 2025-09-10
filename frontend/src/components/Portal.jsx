@@ -13,6 +13,8 @@ export default function Portal() {
     const [filtroCurso, setFiltroCurso] = useState('');
     const [publicacionesOriginales, setPublicacionesOriginales] = useState([]);
     const [terminoProfesor, setTerminoProfesor] = useState('');
+    const [profesorExiste, setProfesorExiste] = useState(null); // null, true, false
+    const [buscandoProfesor, setBuscandoProfesor] = useState(false);
 
 
 
@@ -69,32 +71,74 @@ export default function Portal() {
   }, []);
 
     //FILTROS
-  const aplicarFiltroPorApellido = async () => {
-    if (!terminoProfesor.trim()) return;
+  const aplicarFiltro = async () => {
+    const cursoActivo = filtroCurso.trim() !== '';
+    const profesorActivo = terminoProfesor.trim() !== '';
 
-    try {
-      const res = await fetch(`http://localhost:5000/api/profesores/buscar/${terminoProfesor}`);
-      const data = await res.json();
-
-      const coincidencias = data.profesores.map(p => ({
-        nombre: p.NOMBRES,
-        apellido: p.APELLIDOS
-      }));
-
-      const publicacionesFiltradas = publicaciones.filter(pub =>
-        coincidencias.some(prof =>
-          prof.apellido.toLowerCase() === pub.apellido.toLowerCase()
-        )
-      );
-
-      setPublicaciones(publicacionesFiltradas);
-    } catch (err) {
-      console.error("Error al aplicar filtro por apellido:", err);
-      agregarError("Error al aplicar filtro por apellido:")
+    if (cursoActivo && profesorActivo) {
+      agregarError("Solo se puede aplicar un filtro a la vez");
+      return;
     }
-  };
+    if (cursoActivo) {
+      try {
+        const token = localStorage.getItem('token'); // o el nombre que usaste para guardarlo
+        const res = await fetch(`http://localhost:5000/api/publicaciones/cursos/${filtroCurso}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await res.json();
+        console.log(data);
+        if (!data.publicaciones || data.publicaciones.length === 0) {
+          agregarError("No se encontraron publicaciones para ese curso");
+          return;
+        }
 
-  //const aplicarFiltroCurso
+        const publicacionesFormateadas = data.publicaciones.map(pub => ({
+          id: pub.id,
+          contenido: pub.mensaje,
+          fecha: pub.fecha_creacion,
+          curso: pub.curso.nombre,
+          nombre: pub.autor.nombres,
+          apellido: pub.autor.apellidos,
+          autor: `${pub.autor.nombres} ${pub.autor.apellidos}`
+        }));
+
+        setPublicaciones(publicacionesFormateadas);
+      } catch (err) {
+        console.error("Error al aplicar filtro por curso:", err);
+        agregarError("Hubo un problema al aplicar el filtro");
+      }
+      return;
+    }
+    if (profesorActivo) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/profesores/buscar/${terminoProfesor}`);
+        const data = await res.json();
+
+        const coincidencias = data.profesores.map(p => ({
+          nombre: p.NOMBRES.toLowerCase(),
+          apellido: p.APELLIDOS.toLowerCase()
+        }));
+
+        const publicacionesFiltradas = publicacionesOriginales.filter(pub =>
+          coincidencias.some(prof =>
+            prof.apellido === pub.apellido.toLowerCase() || prof.nombre === pub.nombre.toLowerCase()
+          )
+        );
+
+        setPublicaciones(publicacionesFiltradas);
+      } catch (err) {
+        console.error("Error al aplicar filtro por profesor:", err);
+        agregarError("Hubo un problema al aplicar el filtro");
+      }
+      return;
+    }
+
+    agregarError("No se ha ingresado ningún filtro");
+  };
 
 
 
@@ -111,6 +155,33 @@ export default function Portal() {
     });
     setPublicaciones(actualizadas);
   };*/
+
+      //Busqueda del profresor exacto
+    const buscarProfesorExacto = async () => {
+      const nombre = publicacion.profesorNombre.trim();
+      const apellido = publicacion.profesorApellido.trim();
+      if (nombre.length < 2 || apellido.length < 2) {
+        setProfesorExiste(null);
+        return;
+      }
+      setBuscandoProfesor(true);
+      try {
+        const termino = `${nombre} ${apellido}`;
+        const res = await fetch(`http://localhost:5000/api/profesores/buscar/${encodeURIComponent(termino)}`);
+        const data = await res.json();
+        // Verifica coincidencia exacta de nombre y apellido
+        const existe = data.profesores.some(
+          p =>
+            p.NOMBRES.trim().toLowerCase() === nombre.toLowerCase() &&
+            p.APELLIDOS.trim().toLowerCase() === apellido.toLowerCase()
+        );
+        setProfesorExiste(existe);
+      } catch (err) {
+        setProfesorExiste(null);
+      }
+      setBuscandoProfesor(false);
+    };
+
 
     //OPCION DE BUSQUEDA
   const buscarEstudiante = (e) => {
@@ -151,9 +222,7 @@ export default function Portal() {
         </form>
 
         <nav className="mt-6 space-y-2 text-sm text-gray-700">
-          <a className="block hover:text-indigo-600 cursor-pointer ml-1" onClick={() =>navigate('/perfil')}>Inicio</a>
-          <a href="/reportes" className="block hover:text-indigo-600">Reportes</a>
-          <a href="/configuracion" className="block hover:text-indigo-600">Configuración</a>
+          <a className="block hover:text-indigo-600 cursor-pointer ml-1" onClick={() =>navigate('/perfil')}>Perfil</a>
         </nav>
       </aside>
       
@@ -162,6 +231,10 @@ export default function Portal() {
         <button onClick={() => setMostrarSidebar(!mostrarSidebar)}
          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition mb-4">
             {mostrarSidebar ? 'Ocultar menú' : 'Buscar Estudiante'}
+        </button>
+        <button onClick={() =>navigate('/publicacion')}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition mb-4 m-4">
+          Crear Publicacion
         </button>
         <h1 className="text-3xl font-bold text-center mb-6 text-indigo-700">Publicaciones Recientes</h1>
         
@@ -173,18 +246,21 @@ export default function Portal() {
             placeholder="Buscar profesor por nombre o apellido"
             value={terminoProfesor}
             onChange={(e) => setTerminoProfesor(e.target.value)}
+            disabled={filtroCurso.trim() !== ''}
             className="px-3 py-2 border border-gray-300 rounded-md w-4/12 mb-0"
           />
                     {/* Filtro por Curso */}
           <input
             type="text"
-            placeholder="Buscar curso"
-
+            placeholder ="Buscar curso"
+            value={filtroCurso}
+            onChange={(e) => setFiltroCurso(e.target.value)} 
+            disabled={terminoProfesor.trim() !== ''}
             className="px-3 py-2 border border-gray-300 rounded-md w-4/12 mb-0"
           />
 
           <button
-            onClick={aplicarFiltroPorApellido}
+            onClick={aplicarFiltro}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">
             Aplicar filtros
           </button>
@@ -202,7 +278,7 @@ export default function Portal() {
               <p className="text-sm text-gray-500">{pub.autor}</p>
               <p className="mt-2 text-gray-700">{pub.contenido}</p>
               <p className="text-xs text-gray-400 mt-1">Publicado: {new Date(pub.fecha).toLocaleDateString()}</p>
-{/*
+          {/*
             <Comentario
                 comentarios={pub.comentarios}
                 onAgregar={(comentario) => agregarComentario(pub.id, comentario)}
@@ -219,6 +295,7 @@ export default function Portal() {
               <div key={e.id} className="error-box">{e.msg}</div>
           ))}
       </div>
+
     </div>
   );
 }

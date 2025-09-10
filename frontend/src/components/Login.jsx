@@ -78,9 +78,7 @@ export default function Login() {
           </div>
         </form>
         <div className="error-container">
-          {errores.map(e => (
-            <div key={e.id} className="error-box">{e.msg}</div>
-          ))}
+          {errores.map(e => (<div key={e.id} className="error-box">{e.msg}</div>))}
         </div>
       </div>
     </div>

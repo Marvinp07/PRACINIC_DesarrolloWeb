@@ -183,7 +183,7 @@ router.get("/usuarios/:registroAcademico", verifyToken, async (req, res) => {
     }
 });
 
-router.get("/cursos/:cursoNombre", verifyToken, async (req, res) => {
+router.get("/cursos/:cursoNombre", async (req, res) => {
     try {
         const { cursoNombre } = req.params;
 
