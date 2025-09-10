@@ -21,173 +21,6 @@ const verifyToken = (req, res, next) => {
     }
 };
 
-// OBTENER TODAS LAS PUBLICACIONES CON FILTROS
-router.get('/', async (req, res) => {
-    try {
-        const { 
-            CURSOS_ID_CURSO, 
-            PROFESORES_ID_PROFESOR, 
-            NOMBRE_CURSO, 
-            NOMBRE_PROFESOR, 
-            page = 1, 
-            limit = 10 
-        } = req.query;
-
-        let query = `
-            SELECT 
-                p.*,
-                u.NOMBRES as usuario_nombres,
-                u.APELLIDOS as usuario_apellidos,
-                u.REGISTRO_ACADEMICO as usuario_registro,
-                c.NOMBRE_CURSO,
-                pr.NOMBRES as profesor_nombres,
-                pr.APELLIDOS as profesor_apellidos,
-                (SELECT COUNT(*) FROM COMENTARIOS WHERE PUBLICACIONES_ID_PUBLI = p.ID_PUBLI) as total_comentarios
-            FROM PUBLICACIONES p
-            JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
-            JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
-            JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
-            WHERE 1=1
-        `;
-
-        const params = [];
-
-        // Aplicar filtros
-        if (CURSOS_ID_CURSO) {
-            query += ' AND p.CURSOS_ID_CURSO = ?';
-            params.push(CURSOS_ID_CURSO);
-        }
-
-        if (PROFESORES_ID_PROFESOR) {
-            query += ' AND p.PROFESORES_ID_PROFESOR = ?';
-            params.push(PROFESORES_ID_PROFESOR);
-        }
-
-        if (NOMBRE_CURSO) {
-            query += ' AND c.NOMBRE_CURSO LIKE ?';
-            params.push(`%${NOMBRE_CURSO}%`);
-        }
-
-        if (NOMBRE_PROFESOR) {
-            query += ' AND (pr.NOMBRES LIKE ? OR pr.APELLIDOS LIKE ?)';
-            params.push(`%${NOMBRE_PROFESOR}%`, `%${NOMBRE_PROFESOR}%`);
-        }
-
-        // Ordenar por fecha (más recientes primero)
-        query += ' ORDER BY p.FECHA DESC';
-
-        // Paginación
-        const offset = (page - 1) * limit;
-        query += ' LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), offset);
-
-        const [publicaciones] = await pool.execute(query, params);
-
-        // Obtener el total de registros para la paginación
-        let countQuery = `
-            SELECT COUNT(*) as total
-            FROM PUBLICACIONES p
-            JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
-            JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
-            JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
-            WHERE 1=1
-        `;
-
-        const countParams = [];
-        if (CURSOS_ID_CURSO) {
-            countQuery += ' AND p.CURSOS_ID_CURSO = ?';
-            countParams.push(curso_id);
-        }
-        if (PROFESORES_ID_PROFESOR) {
-            countQuery += ' AND p.PROFESORES_ID_PROFESOR = ?';
-            countParams.push(profesor_id);
-        }
-        if (NOMBRE_CURSO) {
-            countQuery += ' AND c.NOMBRE_CURSO LIKE ?';
-            countParams.push(`%${NOMBRE_CURSO}%`);
-        }
-        if (NOMBRE_PROFESOR) {
-            countQuery += ' AND (pr.NOMBRES LIKE ? OR pr.APELLIDOS LIKE ?)';
-            countParams.push(`%${NOMBRE_PROFESOR}%`, `%${NOMBRE_PROFESOR}%`);
-        }
-
-        const [countResult] = await pool.execute(countQuery, countParams);
-        const totalRecords = countResult[0].total;
-
-        res.json({
-            message: 'Publicaciones obtenidas exitosamente',
-            publicaciones: publicaciones,
-            pagination: {
-                current_page: parseInt(page),
-                per_page: parseInt(limit),
-                total_records: totalRecords,
-                total_pages: Math.ceil(totalRecords / limit)
-            }
-        });
-
-    } catch (error) {
-        console.error('Error al obtener publicaciones:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
-// OBTENER UNA PUBLICACIÓN POR ID CON SUS COMENTARIOS
-router.get('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Obtener la publicación
-        const [publicaciones] = await pool.execute(
-            `SELECT 
-                p.*,
-                u.NOMBRES as usuario_nombres,
-                u.APELLIDOS as usuario_apellidos,
-                u.REGISTRO_ACADEMICO as usuario_registro,
-                c.NOMBRE_CURSO,
-                pr.NOMBRES as profesor_nombres,
-                pr.APELLIDOS as profesor_apellidos
-             FROM PUBLICACIONES p
-             JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
-             JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
-             JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
-             WHERE p.ID_PUBLI = ?`,
-            [id]
-        );
-
-        if (publicaciones.length === 0) {
-            return res.status(404).json({ 
-                error: 'Publicación no encontrada' 
-            });
-        }
-
-        // Obtener los comentarios de la publicación
-        const [comentarios] = await pool.execute(
-            `SELECT 
-                c.*,
-                u.NOMBRES as usuario_nombres,
-                u.APELLIDOS as usuario_apellidos,
-                u.REGISTRO_ACADEMICO as usuario_registro
-             FROM COMENTARIOS c
-             JOIN USUARIOS u ON c.USUARIOS_ID_USUARIO = u.ID_USUARIO
-             WHERE c.PUBLICACIONES_ID_PUBLI = ?
-             ORDER BY c.FECHA_COMENTARIO ASC`,
-            [id]
-        );
-
-        res.json({
-            message: 'Publicación obtenida exitosamente',
-            publicacion: {
-                ...publicaciones[0],
-                comentarios: comentarios
-            }
-        });
-
-    } catch (error) {
-        console.error('Error al obtener publicación:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
 // CREAR UNA PUBLICACIÓN
 router.post('/', verifyToken, async (req, res) => {
     try {
@@ -219,14 +52,14 @@ router.post('/', verifyToken, async (req, res) => {
             }
         }
 
-        // Crear la publicación (usando el ID del usuario autenticado desde el token)
+        // Crear la publicación
         const [result] = await pool.execute(
             `INSERT INTO PUBLICACIONES 
              (MENSAJE, USUARIOS_ID_USUARIO, CURSOS_ID_CURSO, PROFESORES_ID_PROFESOR) 
              VALUES (?, ?, ?, ?)`,
             [
                 MENSAJE,
-                req.userId,                 // ✅ tomado del token
+                req.userId,
                 CURSOS_ID_CURSO || null,
                 PROFESORES_ID_PROFESOR || null
             ]
@@ -260,128 +93,213 @@ router.post('/', verifyToken, async (req, res) => {
     }
 });
 
-
-
-// ACTUALIZAR UNA PUBLICACIÓN (solo el autor puede actualizar)
-router.put('/:id', verifyToken, async (req, res) => {
+// OBTENER TODAS LAS PUBLICACIONES
+router.get("/obtenerPublicaciones", async (req, res) => {
     try {
-        const { id } = req.params;
-        const { mensaje } = req.body;
+        const [rows] = await pool.query(`            
+            SELECT p.ID_PUBLI, p.MENSAJE, p.FECHA,
+            u.NOMBRES as estudiante, c.NOMBRE_CURSO, pr.NOMBRES AS Nombre, pr.APELLIDOS AS Apellido
+            FROM Publicaciones p
+            JOIN Usuarios u ON p.USUARIOS_ID_USUARIO= u.ID_USUARIO
+            LEFT JOIN Cursos c on p.CURSOS_ID_CURSO = c.ID_CURSO
+            LEFT JOIN Profesores pr on p.PROFESORES_ID_PROFESOR= pr.ID_PROFESOR
+            ORDER BY p.FECHA DESC ;    `, [req.params.id]);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-        if (!mensaje) {
+// OBTENER LAS PUBLICACIONES DE UN USUARIO
+router.get("/usuarios/:registroAcademico", verifyToken, async (req, res) => {
+    try {
+        const { registroAcademico } = req.params;
+
+        // Validar que el userId sea un número válido
+        if (isNaN(registroAcademico) || registroAcademico <= 0) {
             return res.status(400).json({ 
-                error: 'El mensaje es obligatorio' 
+                error: 'Registro académico del usuario inválido' 
             });
         }
 
-        // Verificar que la publicación existe y pertenece al usuario
-        const [publicacion] = await pool.execute(
-            'SELECT * FROM PUBLICACIONES WHERE ID_PUBLI = ? AND USUARIOS_ID_USUARIO = ?',
-            [id, req.userId]
+        const [registroExists] = await pool.execute(
+            'SELECT REGISTRO_ACADEMICO FROM USUARIOS WHERE REGISTRO_ACADEMICO = ?',
+            [registroAcademico]
         );
 
-        if (publicacion.length === 0) {
-            return res.status(404).json({ 
-                error: 'Publicación no encontrada o no tienes permisos para modificarla' 
+        if (registroExists.length === 0) {
+            return res.status(404).json({
+                error: 'Usuario no encontrado'
             });
         }
 
-        // Actualizar la publicación
-        await pool.execute(
-            'UPDATE PUBLICACIONES SET MENSAJE = ? WHERE ID_PUBLI = ?',
-            [mensaje, id]
-        );
-
-        res.json({
-            message: 'Publicación actualizada exitosamente'
-        });
-
-    } catch (error) {
-        console.error('Error al actualizar publicación:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
-// ELIMINAR UNA PUBLICACIÓN (solo el autor puede eliminar)
-router.delete('/:id', verifyToken, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Verificar que la publicación existe y pertenece al usuario
-        const [publicacion] = await pool.execute(
-            'SELECT * FROM PUBLICACIONES WHERE ID_PUBLI = ? AND USUARIOS_ID_USUARIO = ?',
-            [id, req.userId]
-        );
-
-        if (publicacion.length === 0) {
-            return res.status(404).json({ 
-                error: 'Publicación no encontrada o no tienes permisos para eliminarla' 
-            });
-        }
-
-        // Eliminar la publicación (los comentarios se eliminarán automáticamente por CASCADE)
-        await pool.execute(
-            'DELETE FROM PUBLICACIONES WHERE ID_PUBLI = ?',
-            [id]
-        );
-
-        res.json({
-            message: 'Publicación eliminada exitosamente'
-        });
-
-    } catch (error) {
-        console.error('Error al eliminar publicación:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
-});
-
-// OBTENER PUBLICACIONES DE UN USUARIO ESPECÍFICO
-router.get('/usuario/:userId', verifyToken, async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { page = 1, limit = 10 } = req.query;
-
-        const offset = (page - 1) * limit;
-
-        const [publicaciones] = await pool.execute(
-            `SELECT 
-                p.*,
-                u.NOMBRES as usuario_nombres,
-                u.APELLIDOS as usuario_apellidos,
+        const [publicaciones] = await pool.execute(`
+            SELECT 
+                p.ID_PUBLI,
+                p.MENSAJE,
+                p.FECHA,
+                u.NOMBRES,
+                u.APELLIDOS,
+                u.REGISTRO_ACADEMICO,
+                p.CURSOS_ID_CURSO AS ID_CURSO,
                 c.NOMBRE_CURSO,
-                pr.NOMBRES as profesor_nombres,
-                pr.APELLIDOS as profesor_apellidos,
-                (SELECT COUNT(*) FROM COMENTARIOS WHERE PUBLICACIONES_ID_PUBLI = p.ID_PUBLI) as total_comentarios
-             FROM PUBLICACIONES p
-             JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
-             JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
-             JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
-             WHERE p.USUARIOS_ID_USUARIO = ?
-             ORDER BY p.FECHA DESC
-             LIMIT ? OFFSET ?`,
-            [userId, parseInt(limit), offset]
-        );
-
-        // Obtener el total de publicaciones del usuario
-        const [countResult] = await pool.execute(
-            'SELECT COUNT(*) as total FROM PUBLICACIONES WHERE USUARIOS_ID_USUARIO = ?',
-            [userId]
-        );
+                p.PROFESORES_ID_PROFESOR AS ID_PROFESOR,
+                pr.NOMBRES AS NOMBRE,
+                pr.APELLIDOS AS APELLIDO
+            FROM PUBLICACIONES p
+            JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
+            LEFT JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
+            LEFT JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
+            WHERE u.REGISTRO_ACADEMICO = ?
+            ORDER BY p.FECHA DESC
+        `, [registroAcademico]);
 
         res.json({
-            message: 'Publicaciones del usuario obtenidas exitosamente',
-            publicaciones: publicaciones,
-            pagination: {
-                current_page: parseInt(page),
-                per_page: parseInt(limit),
-                total_records: countResult[0].total,
-                total_pages: Math.ceil(countResult[0].total / limit)
-            }
+            message: 'Publicaciones obtenidas exitosamente',
+            publicaciones: publicaciones.map(pub => ({
+                id: pub.ID_PUBLI,
+                mensaje: pub.MENSAJE,
+                fecha_creacion: pub.FECHA,
+                curso: pub.ID_CURSO ? {
+                    id: pub.ID_CURSO,
+                    nombre: pub.NOMBRE_CURSO,
+                } : null,
+                profesor: pub.ID_PROFESOR ? {
+                    id: pub.ID_PROFESOR,
+                    nombre: pub.NOMBRE,
+                    apellido: pub.APELLIDO
+                } : null,
+                autor: {
+                    nombres: pub.NOMBRES,
+                    apellidos: pub.APELLIDOS,
+                    registro_academico: pub.REGISTRO_ACADEMICO
+                }
+            }))
         });
 
-    } catch (error) {
-        console.error('Error al obtener publicaciones del usuario:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
+    } catch (err) {
+        console.error('Error al obtener publicaciones del usuario:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get("/cursos/:cursoNombre", verifyToken, async (req, res) => {
+    try {
+        const { cursoNombre } = req.params;
+
+        const [cursoExists] = await pool.execute(
+            'SELECT NOMBRE_CURSO FROM CURSOS WHERE NOMBRE_CURSO = ?',
+            [cursoNombre]
+        );
+
+        const [publicaciones] = await pool.execute(`
+            SELECT 
+                p.ID_PUBLI,
+                p.MENSAJE,
+                p.FECHA,
+                u.NOMBRES,
+                u.APELLIDOS,
+                u.REGISTRO_ACADEMICO,
+                p.CURSOS_ID_CURSO AS ID_CURSO,
+                c.NOMBRE_CURSO
+            FROM PUBLICACIONES p
+            JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
+            LEFT JOIN CURSOS c ON p.CURSOS_ID_CURSO = c.ID_CURSO
+            WHERE c.NOMBRE_CURSO = ?
+            ORDER BY p.FECHA DESC
+        `, [cursoNombre]);
+
+        res.json({
+            message: 'Publicaciones obtenidas exitosamente',
+            curso: cursoExists[0],
+            publicaciones: publicaciones.map(pub => ({
+                id: pub.ID_PUBLI,
+                mensaje: pub.MENSAJE,
+                fecha_creacion: pub.FECHA,
+                curso: {
+                    id: pub.ID_CURSO,
+                    nombre: pub.NOMBRE_CURSO,
+                },
+                autor: {
+                    nombres: pub.NOMBRES,
+                    apellidos: pub.APELLIDOS,
+                    registro_academico: pub.REGISTRO_ACADEMICO
+                }
+            }))
+        });
+
+    } catch (err) {
+        console.error('Error al obtener publicaciones del curso:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get("/profesores/:profesorNombre/:profesorApellido", verifyToken, async (req, res) => {
+    try {
+        const { profesorNombre, profesorApellido } = req.params;
+
+        const [profesorNombreExists] = await pool.execute(
+            'SELECT NOMBRES FROM PROFESORES WHERE NOMBRES = ?',
+            [profesorNombre]
+        );
+
+        const [profesorApellidoExists] = await pool.execute(
+            'SELECT APELLIDOS FROM PROFESORES WHERE APELLIDOS = ?',
+            [profesorApellido]
+        );
+
+        if (profesorNombreExists.length === 0) {
+            return res.status(404).json({
+                error: 'Profesor no encontrado con ese nombre'
+            });
+        }
+
+        if (profesorApellidoExists.length === 0) {
+            return res.status(404).json({
+                error: 'Profesor no encontrado con ese apellido'
+            });
+        }
+
+        const [publicaciones] = await pool.execute(`
+            SELECT 
+                p.ID_PUBLI,
+                p.MENSAJE,
+                p.FECHA,
+                u.NOMBRES,
+                u.APELLIDOS,
+                u.REGISTRO_ACADEMICO,
+                p.PROFESORES_ID_PROFESOR AS ID_PROFESOR,
+                pr.NOMBRES AS NOMBRE,
+                pr.APELLIDOS AS APELLIDO
+            FROM PUBLICACIONES p
+            JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO = u.ID_USUARIO
+            LEFT JOIN PROFESORES pr ON p.PROFESORES_ID_PROFESOR = pr.ID_PROFESOR
+            WHERE pr.NOMBRES = ? OR pr.APELLIDOS = ?
+            ORDER BY p.FECHA DESC
+        `, [profesorNombre, profesorApellido]);
+
+        res.json({
+            message: 'Publicaciones obtenidas exitosamente',
+            publicaciones: publicaciones.map(pub => ({
+                id: pub.ID_PUBLI,
+                mensaje: pub.MENSAJE,
+                fecha_creacion: pub.FECHA,
+                profesor: {
+                    id: pub.ID_PROFESOR,
+                    nombre: pub.NOMBRE,
+                    apellido: pub.APELLIDO
+                },
+                autor: {
+                    nombres: pub.NOMBRES,
+                    apellidos: pub.APELLIDOS,
+                    registro_academico: pub.REGISTRO_ACADEMICO
+                }
+            }))
+        });
+
+    } catch (err) {
+        console.error('Error al obtener publicaciones del curso:', err);
+        res.status(500).json({ error: err.message });
     }
 });
 
