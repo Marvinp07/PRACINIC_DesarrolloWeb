@@ -86,6 +86,7 @@ router.post('/registro', async (req, res) => {
 router.get('/aprobados/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        console.log('Request params:', req.params);
 
         // Validaciones básicas
         if (!id) {
@@ -212,6 +213,50 @@ router.delete('/borrar-cursos/:id/:cursoId', async (req, res) => {
 
     } catch (error) {
         console.error('Error en registro:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+router.post('/suma-creditos', async (req, res) => {
+    try {
+        const { CURSOS_ID_CURSO } = req.body;
+
+        if (!CURSOS_ID_CURSO || !Array.isArray(CURSOS_ID_CURSO) || CURSOS_ID_CURSO.length === 0) {
+            return res.status(400).json({ 
+                error: 'Se requiere un array de IDs de cursos'
+            });
+        }
+
+        const cursosUnicos = [...new Set(CURSOS_ID_CURSO.map(id => parseInt(id)))];
+        const placeholders = cursosUnicos.map(() => '?').join(',');
+
+        // Solo obtener la suma de créditos (consulta más eficiente)
+        const [resultado] = await pool.execute(`
+            SELECT 
+                COUNT(*) as total_cursos,
+                SUM(CREDITOS) as total_creditos
+            FROM CURSOS 
+            WHERE ID_CURSO IN (${placeholders})
+        `, cursosUnicos);
+
+        const { total_cursos, total_creditos } = resultado[0];
+
+        if (total_cursos !== cursosUnicos.length) {
+            return res.status(404).json({
+                error: 'Algunos cursos no existen',
+                cursos_solicitados: cursosUnicos.length,
+                cursos_encontrados: total_cursos
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            total_cursos: parseInt(total_cursos),
+            total_creditos: parseInt(total_creditos) || 0
+        });
+
+    } catch (error) {
+        console.error('Error al obtener total de créditos:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
