@@ -107,7 +107,7 @@ router.get('/aprobados/:id', async (req, res) => {
             });
         }
 
-        const [cursoAprobadoInfo] = await pool.execute(`
+        const [cursosAprobados] = await pool.execute(`
             SELECT 
                 ca.USUARIOS_ID_USUARIO,
                 ca.CURSOS_ID_CURSO,
@@ -125,15 +125,32 @@ router.get('/aprobados/:id', async (req, res) => {
             WHERE ca.USUARIOS_ID_USUARIO = ?
         `, [id]);
 
-        if (cursoAprobadoInfo.length === 0) {
+        if (cursosAprobados.length === 0) {
             return res.status(200).json({
                 message: 'El usuario no cuenta con cursos aprobados'
             });
         }
 
-        res.status(200).json({
+        const infoUsuario = {
+            ID_USUARIO: cursosAprobados[0].USUARIOS_ID_USUARIO,
+            NOMBRE_USUARIO: cursosAprobados[0].NOMBRE_USUARIO,
+            APELLIDO_USUARIO: cursosAprobados[0].APELLIDO_USUARIO,
+            REGISTRO_ACADEMICO: cursosAprobados[0].REGISTRO_ACADEMICO
+        };
+
+        // Extraer solo la información de los cursos
+        const cursos = cursosAprobados.map(curso => ({
+            ID_CURSO: curso.CURSOS_ID_CURSO,
+            NOMBRE_CURSO: curso.NOMBRE_CURSO,
+            CREDITOS: curso.CREDITOS,
+            NOMBRE_PROFESOR: curso.NOMBRE_PROFESOR,
+            APELLIDO_PROFESOR: curso.APELLIDO_PROFESOR
+        }));
+
+        res.status(201).json({
             message: 'Cursos Aprobados',
-            data: cursoAprobadoInfo
+            usuario: infoUsuario,
+            curso: cursos
         });
 
     } catch (error) {
