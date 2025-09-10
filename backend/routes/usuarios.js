@@ -222,9 +222,9 @@ router.get('/buscar/:registro', verifyToken, async (req, res) => {
 // ACTUALIZAR DATOS DEL USUARIO AUTENTICADO
 router.put('/perfil', verifyToken, async (req, res) => {
     try {
-        const { nombres, apellidos, correo } = req.body;
+        const { nombres, apellidos, correo, nueva_contrasena } = req.body;
 
-        if (!nombres && !apellidos && !correo) {
+        if (!nombres && !apellidos && !correo && !nueva_contrasena) {
             return res.status(400).json({
                 error: 'Debes enviar al menos un campo para actualizar'
             });
@@ -257,6 +257,13 @@ router.put('/perfil', verifyToken, async (req, res) => {
         if (correo) {
             fields.push('CORREO = ?');
             values.push(correo);
+        }
+        
+        const saltRounds = 10;
+        const hashedNewPassword = await bcrypt.hash(nueva_contrasena, saltRounds);
+        if (nueva_contrasena) {
+            fields.push('CONTRASENA = ?')
+            values.push(hashedNewPassword)
         }
 
         values.push(req.userId);
