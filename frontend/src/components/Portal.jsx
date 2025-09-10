@@ -1,52 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Comentario from './Comentarios';
 
 
-const publicacionesSimuladas = [
-  {
-    id: 1,
-    titulo: "Guía de Parsing en CUP",
-    curso: "Compiladores",
-    catedratico: "Ing. Pérez",
-    contenido: "Explicación paso a paso de gramáticas LR.",
-    fecha: "2025-09-07",
-    comentarios: [
-      { autor: "Charlito", texto: "Muy útil para el laboratorio" },
-      { autor: "Ana", texto: "¿Tienes ejemplos con errores?" }
-    ]
-  },
-  {
-    id: 2,
-    titulo: "Visualización de AFDs",
-    curso: "Teoría de Autómatas",
-    catedratico: "Lic. Gómez",
-    contenido: "Ejemplo visual con Graphviz y recorridos.",
-    fecha: "2025-09-06",
-    comentarios: [
-      { autor: "Luis", texto: "Excelente visualización" },
-      { autor: "Marta", texto: "¿Se puede aplicar a APs?" }
-    ]
-  }
-];
-
 export default function Portal() {
-    const [publicaciones, setPublicaciones] = useState(publicacionesSimuladas);
+    const [publicaciones, setPublicaciones] = useState([]);
     const [registro, setRegistro] = useState('');
     const navigate = useNavigate();
     const [mostrarSidebar, setMostrarSidebar] = useState(true);
+    const [errores, setErrores] = useState([]);
+
+
+  const agregarError = (msg) => {
+      const id = Date.now();
+      setErrores(prev => [...prev, { id, msg }]);
+      setTimeout(() => {
+      setErrores(prev => prev.filter(e => e.id !== id));
+      }, 3000);
+  };  
+
+
+
+
+  useEffect(() => {
+    const fetchPublicaciones = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/publicaciones/obtenerPublicaciones");
+
+      if (!res.ok) {
+        // Si el backend devolvió error (404, 500, etc)
+        const errorData = await res.json();
+        console.error("Error del backend:", errorData.error);
+        return; // salir de la función para no intentar mapear
+      }
+
+      const data = await res.json();
+      
+      // ⚡️ Solo mapear si es un array
+      if (!Array.isArray(data)) {
+        console.error("La data recibida no es un array:", data);
+        return;
+      }
+
+      const publicacionesFormateadas = data.map(pub => ({
+        id: pub.ID_PUBLI,
+        autor: pub.estudiante,
+        curso: pub.NOMBRE_CURSO,
+        catedratico: `${pub.Nombre} ${pub.Apellido}`,
+        contenido: pub.MENSAJE,
+        fecha: pub.FECHA
+      }));
+
+      setPublicaciones(publicacionesFormateadas);
+
+    } catch (err) {
+      console.error("Error al obtener publicaciones:", err);
+    }
+    };
+    fetchPublicaciones(); 
+  }, []);
+  /*
   const agregarComentario = (idPublicacion, nuevoComentario) => {
     const actualizadas = publicaciones.map(pub => {
       if (pub.id === idPublicacion) {
         return {
-          ...pub,
-          comentarios: [...pub.comentarios, nuevoComentario]
+          ...pub
+         // comentarios: [...pub.comentarios, nuevoComentario]
         };
       }
       return pub;
     });
     setPublicaciones(actualizadas);
-  };
+  };*/
 
   const buscarEstudiante = (e) => {
     e.preventDefault();
@@ -98,19 +123,25 @@ export default function Portal() {
         <div className="space-y-6">
           {publicaciones.map(pub => (
             <div key={pub.id} className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold text-indigo-600">{pub.titulo}</h2>
-              <p className="text-sm text-gray-500">Curso: {pub.curso} | Catedrático: {pub.catedratico}</p>
+              <h2 className="text-xl font-semibold text-indigo-600">  {pub.curso === "null" || !pub.curso ? `Profesor: ${pub.catedratico}` : `Curso: ${pub.curso}`}</h2>
+              <p className="text-sm text-gray-500">{pub.autor}</p>
               <p className="mt-2 text-gray-700">{pub.contenido}</p>
               <p className="text-xs text-gray-400 mt-1">Publicado: {new Date(pub.fecha).toLocaleDateString()}</p>
-
-              <Comentario
-                comentarios={pub.comentarios}
-                onAgregar={(comentario) => agregarComentario(pub.id, comentario)}
-              />
-            </div>
+{/*
+            <Comentario
+                //comentarios={pub.comentarios}
+                //onAgregar={(comentario) => agregarComentario(pub.id, comentario)}
+              
+              /> */}
+            </div> 
           ))}
         </div>
       </main>
+      <div className="error-container">
+          {errores.map(e => (
+              <div key={e.id} className="error-box">{e.msg}</div>
+          ))}
+      </div>
     </div>
   );
 }
