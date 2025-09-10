@@ -99,11 +99,13 @@ router.get("/obtenerPublicaciones", async (req, res) => {
         const [rows] = await pool.query(`            
             SELECT p.ID_PUBLI, p.MENSAJE, p.FECHA,
             u.NOMBRES as estudiante, c.NOMBRE_CURSO, pr.NOMBRES AS Nombre, pr.APELLIDOS AS Apellido
-            FROM Publicaciones p
-            JOIN Usuarios u ON p.USUARIOS_ID_USUARIO= u.ID_USUARIO
-            LEFT JOIN Cursos c on p.CURSOS_ID_CURSO = c.ID_CURSO
-            LEFT JOIN Profesores pr on p.PROFESORES_ID_PROFESOR= pr.ID_PROFESOR
-            ORDER BY p.FECHA DESC ;    `, [req.params.id]);
+            FROM PUBLICACIONES p
+            JOIN USUARIOS u ON p.USUARIOS_ID_USUARIO= u.ID_USUARIO
+            LEFT JOIN CURSOS c on p.CURSOS_ID_CURSO = c.ID_CURSO
+            LEFT JOIN PROFESORES pr on p.PROFESORES_ID_PROFESOR= pr.ID_PROFESOR
+            ORDER BY p.FECHA DESC ;`, 
+            [req.params.id]
+        );
         res.json(rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
