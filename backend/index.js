@@ -5,10 +5,9 @@ import { testConnection } from "./config/database.js";
 
 // Importar rutas
 import usuariosRoutes from "./routes/usuarios.js";
-//import cursosRoutes from "./routes/cursos.js";
 import profesoresRoutes from "./routes/profesores.js";
 import publicacionesRoutes from "./routes/publicaciones.js";
-//import comentariosRoutes from "./routes/comentarios.js";
+import comentariosRoutes from "./routes/comentarios.js";
 import cursosAprobadosRoutes from "./routes/cursosAprobados.js";
 
 dotenv.config();
@@ -29,10 +28,9 @@ app.use((req, res, next) => {
 
 // Rutas principales
 app.use('/api/usuarios', usuariosRoutes);
-//app.use('/api/cursos', cursosRoutes);
 app.use('/api/profesores', profesoresRoutes);
 app.use('/api/publicaciones', publicacionesRoutes);
-//app.use('/api/comentarios', comentariosRoutes);
+app.use('/api/comentarios', comentariosRoutes);
 app.use('/api/cursos-aprobados', cursosAprobadosRoutes);
 
 // Ruta de prueba
