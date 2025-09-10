@@ -24,32 +24,37 @@ const verifyToken = (req, res, next) => {
 // CREAR UNA PUBLICACIÓN
 router.post('/', verifyToken, async (req, res) => {
     try {
-        const { CURSOS_ID_CURSO, PROFESORES_ID_PROFESOR, MENSAJE } = req.body;
+        const { NOMBRE_CURSO, NOMBRES, APELLIDOS, MENSAJE } = req.body;
 
         if (!MENSAJE) {
             return res.status(400).json({ error: 'El mensaje es obligatorio' });
         }
 
+        let CURSOS_ID_CURSO = null;
+        let PROFESORES_ID_PROFESOR = null;
+
         // Validar curso si se envió
-        if (CURSOS_ID_CURSO) {
+        if (NOMBRE_CURSO) {
             const [curso] = await pool.execute(
-                "SELECT * FROM CURSOS WHERE ID_CURSO = ?",
-                [CURSOS_ID_CURSO]
+                "SELECT ID_CURSO FROM CURSOS WHERE NOMBRE_CURSO = ?",
+                [NOMBRE_CURSO]
             );
             if (curso.length === 0) {
                 return res.status(404).json({ error: "Curso no encontrado" });
             }
+            CURSOS_ID_CURSO = curso[0].ID_CURSO;
         }
 
         // Validar profesor si se envió
-        if (PROFESORES_ID_PROFESOR) {
+        if (NOMBRES && APELLIDOS) {
             const [profesor] = await pool.execute(
-                "SELECT * FROM PROFESORES WHERE ID_PROFESOR = ?",
-                [PROFESORES_ID_PROFESOR]
+                "SELECT ID_PROFESOR FROM PROFESORES WHERE NOMBRES = ? AND APELLIDOS = ? ",
+                [NOMBRES, APELLIDOS]
             );
             if (profesor.length === 0) {
                 return res.status(404).json({ error: "Profesor no encontrado" });
             }
+            PROFESORES_ID_PROFESOR = profesor[0].ID_PROFESOR;
         }
 
         // Crear la publicación
@@ -185,7 +190,7 @@ router.get("/usuarios/:registroAcademico", verifyToken, async (req, res) => {
     }
 });
 
-router.get("/cursos/:cursoNombre", verifyToken, async (req, res) => {
+router.get("/cursos/:cursoNombre", async (req, res) => {
     try {
         const { cursoNombre } = req.params;
 
