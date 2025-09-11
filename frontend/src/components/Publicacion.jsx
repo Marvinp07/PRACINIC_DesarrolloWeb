@@ -22,18 +22,9 @@ export default function CrearPublicacion() {
   const [tipoSeleccion, setTipoSeleccion] = useState(''); // 'curso' o 'profesor'
   const [errors, setErrors] = useState({});
 
-  // Datos de ejemplo
   const [cursos, setCursos] = useState([]);
 
 
-  const [profesores] = useState([
-    { id: 1, nombre: 'Dr. Carlos Martínez', departamento: 'Matemáticas' },
-    { id: 2, nombre: 'Dra. Ana López', departamento: 'Física' },
-    { id: 3, nombre: 'Ing. Roberto García', departamento: 'Informática' },
-    { id: 4, nombre: 'Dra. María Rodríguez', departamento: 'Química' },
-    { id: 5, nombre: 'Prof. Luis Hernández', departamento: 'Inglés' },
-    { id: 6, nombre: 'Dr. José Pérez', departamento: 'Estadística' }
-  ]);
 
   // Cargar datos del usuario desde localStorage al montar el componente
   useEffect(() => {
@@ -102,7 +93,6 @@ export default function CrearPublicacion() {
 
   const irPortal = () => {
     navigate('/portal');
-    // Aquí tu lógica de navegación
   };
 
   const handleInputChange = (field, value) => {

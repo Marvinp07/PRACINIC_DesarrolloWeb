@@ -111,7 +111,6 @@ export default function ProfilePanel() {
 
 
     const handleGoHome = () => {
-        // Aquí puedes agregar tu lógica de navegación:
         navigate('/portal'); 
 
     };
