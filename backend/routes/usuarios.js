@@ -259,9 +259,9 @@ router.put('/perfil', verifyToken, async (req, res) => {
             values.push(correo);
         }
         
-        const saltRounds = 10;
-        const hashedNewPassword = await bcrypt.hash(nueva_contrasena, saltRounds);
         if (nueva_contrasena) {
+            const saltRounds = 10;
+            const hashedNewPassword = await bcrypt.hash(nueva_contrasena, saltRounds);
             fields.push('CONTRASENA = ?')
             values.push(hashedNewPassword)
         }
