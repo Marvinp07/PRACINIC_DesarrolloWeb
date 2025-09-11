@@ -72,6 +72,28 @@ router.get('/buscar/:termino', async (req, res) => {
     }
 });
 
+router.get('/buscar/:Nombre/:Apellido', async (req, res) => {
+    try {
+        const { Nombre, Apellido } = req.params;
+        
+        const [profesores] = await pool.execute(`
+            SELECT 
+                *
+            FROM PROFESORES p 
+            WHERE p.NOMBRES = ? AND p.APELLIDOS = ? 
+            ORDER BY APELLIDOS, NOMBRES`,
+        [Nombre, Apellido]);
+
+        res.json({
+            message: 'Búsqueda completada',
+            profesores: profesores,
+        });
+
+    } catch (error) {
+        console.error('Error al buscar profesores:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
 // BUSCAR CURSOS IMPARTIDOS POR UN PROFESOR
 router.get('/:id/cursos', async (req, res) => {
