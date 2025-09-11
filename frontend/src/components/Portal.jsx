@@ -156,31 +156,6 @@ export default function Portal() {
     setPublicaciones(actualizadas);
   };*/
 
-      //Busqueda del profresor exacto
-    const buscarProfesorExacto = async () => {
-      const nombre = publicacion.profesorNombre.trim();
-      const apellido = publicacion.profesorApellido.trim();
-      if (nombre.length < 2 || apellido.length < 2) {
-        setProfesorExiste(null);
-        return;
-      }
-      setBuscandoProfesor(true);
-      try {
-        const termino = `${nombre} ${apellido}`;
-        const res = await fetch(`http://localhost:5000/api/profesores/buscar/${encodeURIComponent(termino)}`);
-        const data = await res.json();
-        // Verifica coincidencia exacta de nombre y apellido
-        const existe = data.profesores.some(
-          p =>
-            p.NOMBRES.trim().toLowerCase() === nombre.toLowerCase() &&
-            p.APELLIDOS.trim().toLowerCase() === apellido.toLowerCase()
-        );
-        setProfesorExiste(existe);
-      } catch (err) {
-        setProfesorExiste(null);
-      }
-      setBuscandoProfesor(false);
-    };
 
 
     //OPCION DE BUSQUEDA

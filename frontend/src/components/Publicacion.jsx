@@ -158,7 +158,10 @@ export default function CrearPublicacion() {
       nuevosErrores.mensaje = 'El mensaje debe tener al menos 1 caracter';
     }
 
-    if (!publicacion.curso && !publicacion.profesor) {
+    if (
+      !publicacion.curso &&
+      !(publicacion.profesorNombre && publicacion.profesorApellido)
+    ) {
       nuevosErrores.seleccion = 'Debes seleccionar un curso o un profesor';
     }
 
@@ -180,11 +183,9 @@ export default function CrearPublicacion() {
       // Construir el objeto para enviar al backend
       const body = {
         MENSAJE: publicacion.mensaje.trim(),
-        CURSO_NOMBRE: publicacion.curso || undefined,
-        PROFESOR_NOMBRE: 
-          publicacion.profesorNombre && publicacion.profesorApellido
-            ? `${publicacion.profesorNombre} ${publicacion.profesorApellido}`
-            : undefined
+        NOMBRE_CURSO: publicacion.curso || undefined,
+        NOMBRES: publicacion.profesorNombre || undefined,
+        APELLIDOS: publicacion.profesorApellido || undefined
       };
 
       try {
@@ -228,6 +229,30 @@ export default function CrearPublicacion() {
     });
     setTipoSeleccion('');
     setErrors({});
+  };
+
+  const [profesorExiste, setProfesorExiste] = useState(null); // null, true, false
+  const [buscandoProfesor, setBuscandoProfesor] = useState(false);
+
+  // Función para buscar profesor exacto
+  const buscarProfesorExacto = async () => {
+    const nombre = publicacion.profesorNombre.trim().toUpperCase();
+    const apellido = publicacion.profesorApellido.trim().toUpperCase();
+    if (nombre.length < 2 || apellido.length < 2) {
+      setProfesorExiste(null);
+      return;
+    }
+    setBuscandoProfesor(true);
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/profesores/buscar/${nombre}/${apellido}`
+      );
+      const data = await res.json();
+      setProfesorExiste(data.profesores && data.profesores.length > 0);
+    } catch (err) {
+      setProfesorExiste(null);
+    }
+    setBuscandoProfesor(false);
   };
 
   useEffect(() => {
