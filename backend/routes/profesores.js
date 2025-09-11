@@ -95,7 +95,6 @@ router.get('/buscar/:Nombre/:Apellido', async (req, res) => {
     }
 });
 
-
 // BUSCAR CURSOS IMPARTIDOS POR UN PROFESOR
 router.get('/:id/cursos', async (req, res) => {
     try {
