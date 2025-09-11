@@ -9,15 +9,12 @@ export default function Portal() {
     const navigate = useNavigate();
     const [mostrarSidebar, setMostrarSidebar] = useState(true);
     const [errores, setErrores] = useState([]);
+    const [comentarios, setComentarios] = useState([]);
+    const [publicacionSeleccionada, setPublicacionSeleccionada] = useState(null);
     //Filtros
     const [filtroCurso, setFiltroCurso] = useState('');
     const [publicacionesOriginales, setPublicacionesOriginales] = useState([]);
     const [terminoProfesor, setTerminoProfesor] = useState('');
-    const [profesorExiste, setProfesorExiste] = useState(null); // null, true, false
-    const [buscandoProfesor, setBuscandoProfesor] = useState(false);
-
-
-
 
   const agregarError = (msg) => {
       const id = Date.now();
@@ -27,8 +24,6 @@ export default function Portal() {
       }, 3000);
   };  
 
-
-
   //CARGA DE PUBLICACIONES PORTAL
   useEffect(() => {
     const fetchPublicaciones = async () => {
@@ -36,7 +31,6 @@ export default function Portal() {
       const res = await fetch("http://localhost:5000/api/publicaciones/obtenerPublicaciones");
 
       if (!res.ok) {
-        // Si el backend devolvió error (404, 500, etc)
         const errorData = await res.json();
         console.error("Error del backend:", errorData.error);
         return; 
@@ -52,7 +46,7 @@ export default function Portal() {
 
       const publicacionesFormateadas = data.map(pub => ({
         id: pub.ID_PUBLI,
-        autor: pub.estudiante,
+        autor:`${pub.estudiante} ${pub.apellido_estudiante}`,
         curso: pub.NOMBRE_CURSO,
         nombre: `${pub.Nombre}`,
         apellido: `${pub.Apellido}`,
@@ -81,7 +75,7 @@ export default function Portal() {
     }
     if (cursoActivo) {
       try {
-        const token = localStorage.getItem('token'); // o el nombre que usaste para guardarlo
+        const token = localStorage.getItem('token'); 
         const res = await fetch(`http://localhost:5000/api/publicaciones/cursos/${filtroCurso}`, {
           method: 'GET',
           headers: {
@@ -140,29 +134,11 @@ export default function Portal() {
     agregarError("No se ha ingresado ningún filtro");
   };
 
-
-
-  /*
-  const agregarComentario = (idPublicacion, idUsuario, nuevoComentario) => {
-    const actualizadas = publicaciones.map(pub => {
-      if (pub.id === idPublicacion) {
-        return {
-          ...pub
-         // comentarios: [...pub.comentarios, nuevoComentario]
-        };
-      }
-      return pub;
-    });
-    setPublicaciones(actualizadas);
-  };*/
-
-
-
     //OPCION DE BUSQUEDA
   const buscarEstudiante = (e) => {
     e.preventDefault();
     if (registro.trim() !== '') {
-      navigate(`/estudiante/${registro}`);
+      navigate(`/otroPerfil/${registro.trim()}`);
     }
   };
 
@@ -173,6 +149,56 @@ export default function Portal() {
   };
 
 
+    const cerrarSesion = () => {
+        localStorage.clear();
+        navigate('/'); 
+
+    };
+    const irPerfil = () => {
+      navigate('/perfil'); 
+
+    };
+
+    const cargarComentarios = async (idPublicacion) => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/comentarios/publicacion/${idPublicacion}`);
+        const data = await res.json();
+        console.log('Comentarios recibidos:', data); // <-- Agrega esto
+        if (res.ok && data.comentarios) {
+          setComentarios(data.comentarios.lista);
+          setPublicacionSeleccionada(idPublicacion);
+        } else {
+          setComentarios([]);
+          setPublicacionSeleccionada(idPublicacion);
+        }
+      } catch (err) {
+        setComentarios([]);
+        setPublicacionSeleccionada(idPublicacion);
+      }
+    };
+
+    const agregarComentario = async (comentario) => {
+      const sesion = JSON.parse(localStorage.getItem('sesion'));
+      const usuarioId = sesion?.usuario?.id;
+      if (!publicacionSeleccionada || !usuarioId || !comentario.trim()) return;
+
+      try {
+        const res = await fetch('http://localhost:5000/api/comentarios/crearComentario', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            PUBLICACIONES_ID_PUBLI: publicacionSeleccionada,
+            USUARIOS_ID_USUARIO: usuarioId,
+            MENSAJE_COMENTARIO: comentario
+          })
+        });
+        if (res.ok) {
+          cargarComentarios(publicacionSeleccionada);
+        }
+      } catch (err) {
+        agregarError("No se pudo agregar el comentario");
+      }
+    };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -180,38 +206,47 @@ export default function Portal() {
 
       {/* Sidebar */}
     
-    <aside className={`${mostrarSidebar ? 'block' : 'hidden'} w-64 bg-white shadow-md p-4`}>
-        <h2 className="text-xl font-bold text-indigo-600 mb-4">Panel</h2>
+    <aside className={`${mostrarSidebar ? 'block' : 'hidden'} w-64 bg-gradient-to-bl from-gray-900 via-purple-900 to-violet-900 bg-black bg-opacity-20 bg-white/10 shadow-md p-4`}>
+        <h2 className="text-xl font-bold text-violet-100 mb-4">Panel</h2>
         <form onSubmit={buscarEstudiante} className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Buscar por registro</label>
+          <label className="block text-sm font-medium text-white">Buscar por registro</label>
           <input
             type="text"
             value={registro}
             onChange={(e) => setRegistro(e.target.value)}
             placeholder="Ej. 202100123"
-            className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
-          <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition">
-            Buscar
+          <button type="submit" className="w-full bg-violet-600 text-white py-2 rounded-md hover:bg-violet-700 transition">
+            Buscar 
           </button>
         </form>
 
-        <nav className="mt-6 space-y-2 text-sm text-gray-700">
-          <a className="block hover:text-indigo-600 cursor-pointer ml-1" onClick={() =>navigate('/perfil')}>Perfil</a>
-        </nav>
       </aside>
       
       {/* Contenido principal */}
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6 bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 bg-black bg-opacity-20 bg-white/10">
         <button onClick={() => setMostrarSidebar(!mostrarSidebar)}
-         className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition mb-4">
+         className="bg-violet-800 text-white px-4 py-2 rounded-md hover:bg-violet-900 transition mb-4">
             {mostrarSidebar ? 'Ocultar menú' : 'Buscar Estudiante'}
         </button>
         <button onClick={() =>navigate('/publicacion')}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition mb-4 m-4">
+          className="bg-violet-800 text-white px-4 py-2 rounded-md hover:bg-violet-900 transition mb-4 m-4">
           Crear Publicacion
         </button>
-        <h1 className="text-3xl font-bold text-center mb-6 text-indigo-700">Publicaciones Recientes</h1>
+        <button
+            onClick={cerrarSesion}
+            className="absolute top-4 right-4 p-2 text-white hover:bg-violet-500 hover:bg-opacity-20 rounded-full transition-colors duration-200"
+            title="Cerrar Sesion">
+            <Home/>
+        </button>
+        <button
+            onClick={irPerfil}
+            className="absolute top-4 right-14 p-2 text-white hover:bg-violet-500 hover:bg-opacity-20 rounded-full transition-colors duration-200"
+            title="Menu de Perfil">
+            <User/>
+        </button>
+        <h1 className="text-3xl font-bold text-center mb-6 text-violet-200">Publicaciones Recientes</h1>
         
         <div className="flex items-center space-x-4 mb-6">
 
@@ -236,7 +271,7 @@ export default function Portal() {
 
           <button
             onClick={aplicarFiltro}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">
+            className="px-4 py-2 bg-violet-800 text-white rounded-md hover:bg-violet-900 transition">
             Aplicar filtros
           </button>
           <button
@@ -246,19 +281,23 @@ export default function Portal() {
           </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 ">
           {publicaciones.map(pub => (
-            <div key={pub.id} className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold text-indigo-600">  {pub.curso === "null" || !pub.curso ? `Profesor: ${pub.nombre} ${pub.apellido}` : `Curso: ${pub.curso}`}</h2>
-              <p className="text-sm text-gray-500">{pub.autor}</p>
-              <p className="mt-2 text-gray-700">{pub.contenido}</p>
+            <div key={pub.id} className=" p-6 rounded-lg shadow-md bg-white/10 backdrop-blur-lg border border-white/20">
+              <h2 className="text-xl font-semibold text-white">  {pub.curso === "null" || !pub.curso ? `Profesor: ${pub.nombre} ${pub.apellido}` : `Curso: ${pub.curso}`}</h2>
+              <p className="text-sm text-gray-200">{pub.autor}</p>
+              <p className="mt-2 text-gray-300">{pub.contenido}</p>
               <p className="text-xs text-gray-400 mt-1">Publicado: {new Date(pub.fecha).toLocaleDateString()}</p>
-          {/*
-            <Comentario
-                comentarios={pub.comentarios}
-                onAgregar={(comentario) => agregarComentario(pub.id, comentario)}
-              
-              /> */}
+              <button
+                className="mt-2 px-3 py-1 bg-violet-100 text-violet-700 rounded hover:bg-violet-200"
+                onClick={() => cargarComentarios(pub.id)}
+              >
+                Ver comentarios
+              </button>
+              {/* Mostrar comentarios si esta publicación está seleccionada */}
+              {publicacionSeleccionada === pub.id && (
+                <Comentario comentarios={comentarios} onAgregar={agregarComentario} />
+              )}
             </div> 
           ))}
         </div>
@@ -274,3 +313,14 @@ export default function Portal() {
     </div>
   );
 }
+const Home = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+  </svg>
+);
+
+const User = () => (
+  <svg className= "w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);

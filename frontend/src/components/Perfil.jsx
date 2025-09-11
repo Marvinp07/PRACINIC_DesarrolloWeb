@@ -12,10 +12,8 @@ export default function ProfilePanel() {
         nombre: '',
         apellido: '',
         correo: '',
-        contraseña: '••••••••'
+        contraseña: ''
     });
-
-
 
     useEffect(() => {
         const actualizarInfo = async () => {
@@ -38,7 +36,7 @@ export default function ProfilePanel() {
                 nombre: data.usuario.NOMBRES,
                 apellido: data.usuario.APELLIDOS,
                 correo: data.usuario.CORREO,
-                contraseña: '••••••••'
+                contraseña: data.usuario.CONTRASENA
             });
             } else {
                 console.error('Error:', data.error);
@@ -56,47 +54,48 @@ export default function ProfilePanel() {
 
 
     useEffect(() => {
-    const cargarCursosAprobados = async () => {
+      const cargarCursosAprobados = async () => {
         const sesion = JSON.parse(localStorage.getItem('sesion'));
         const idUsuario = sesion?.usuario?.id;
+        if (!idUsuario) return;
 
-        const res = await fetch(`http://localhost:5000/api/cursos-aprobados/aprobados/${idUsuario}`);
-        const data = await res.json();
-
-        if (res.ok && data.data) {
-        const cursos = Array.isArray(data.data) ? data.data : [data.data];
-
-        const cursosTransformados = cursos.map(curso => ({
-            id: curso.CURSOS_ID_CURSO,
-            nombre: curso.NOMBRE_CURSO,
-            creditos: curso.CREDITOS
-        }));
-
-        setCursosAprobados(cursosTransformados);
-
-        const total = cursosTransformados.reduce((acc, c) => acc + c.creditos, 0);
-        setCreditosTotales(total);
+        try {
+          const res = await fetch(`http://localhost:5000/api/cursos-aprobados/aprobados/${idUsuario}`);
+          const data = await res.json();
+          if (res.ok && data.curso) {
+            // Mapea los cursos para que tengan la propiedad 'nombre'
+            setCursosAprobados(
+              data.curso.map(curso => ({
+                id: curso.ID_CURSO,
+                nombre: curso.NOMBRE_CURSO,
+                creditos: curso.CREDITOS
+              }))
+            );
+          } else {
+            setCursosAprobados([]);
+          }
+        } catch (err) {
+          setCursosAprobados([]);
         }
-    };
-
-    cargarCursosAprobados();
+      };
+      cargarCursosAprobados();
     }, []);
 
 
 
   // Cursos disponibles y aprobados
-    const [cursosDisponibles] = useState([
-        { id: 1, nombre: 'Matemáticas I', creditos: 4 },
-        { id: 2, nombre: 'Física I', creditos: 4 },
-        { id: 3, nombre: 'Programación I', creditos: 3 },
-        { id: 4, nombre: 'Cálculo I', creditos: 5 },
-        { id: 5, nombre: 'Química General', creditos: 4 },
-        { id: 6, nombre: 'Inglés I', creditos: 2 },
-        { id: 7, nombre: 'Estadística', creditos: 3 },
-        { id: 8, nombre: 'Base de Datos', creditos: 4 },
-        { id: 9, nombre: 'Algoritmos', creditos: 4 },
-        { id: 10, nombre: 'Redes', creditos: 3 }
-    ]);
+    const [cursosDisponibles, setCursosDisponibles] = useState([]);
+
+    useEffect(() => {
+      const cargarCursos = async () => {
+        const res = await fetch('http://localhost:5000/api/cursos/id');
+        const data = await res.json();
+        if (res.ok && data.cursos) {
+          setCursosDisponibles(data.cursos); // [{ NOMBRE_CURSO, ID_CURSO }]
+        }
+      };
+      cargarCursos();
+    }, []);
 
 
     const [cursoSeleccionado, setCursoSeleccionado] = useState('');
@@ -110,10 +109,6 @@ export default function ProfilePanel() {
 
     const [tempValues, setTempValues] = useState({});
 
-    // Cursos no aprobados disponibles para agregar
-    const cursosDisponiblesParaAgregar = cursosDisponibles.filter(
-        curso => !cursosAprobados.some(aprobado => aprobado.id === curso.id)
-    );
 
     const handleGoHome = () => {
         // Aquí puedes agregar tu lógica de navegación:
@@ -123,23 +118,78 @@ export default function ProfilePanel() {
 
     
     //Agregar cursos aprobados al usuario
-    const agregarCurso = () => {
-        if (cursoSeleccionado) {
-        const curso = cursosDisponibles.find(c => c.id === parseInt(cursoSeleccionado));
-        if (curso && !cursosAprobados.some(c => c.id === curso.id)) {
-            setCursosAprobados([...cursosAprobados, curso]);
+    const agregarCurso = async () => {
+      if (cursoSeleccionado) {
+        const sesion = JSON.parse(localStorage.getItem('sesion'));
+        const idUsuario = sesion?.usuario?.id;
+        const curso = cursosDisponibles.find(c => c.ID_CURSO === parseInt(cursoSeleccionado));
+
+        if (!idUsuario || !curso) return;
+
+        try {
+          const res = await fetch('http://localhost:5000/api/cursos-aprobados/registro', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              USUARIOS_ID_USUARIO: idUsuario,
+              CURSOS_ID_CURSO: curso.ID_CURSO
+            })
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            // Agrega el curso a la lista local
+            setCursosAprobados(prev => [
+              ...prev,
+              {
+                id: curso.ID_CURSO,
+                nombre: curso.NOMBRE_CURSO,
+                creditos: curso.CREDITOS
+              }
+            ]);
             setCursoSeleccionado('');
+          } else {
+            alert(data.error || 'No se pudo agregar el curso');
+          }
+        } catch (error) {
+          console.error('Error al agregar curso:', error);
+          alert('Ocurrió un error al agregar el curso');
         }
-        }
+      }
     };
 
-    const eliminarCurso = (cursoId) => {
-        setCursosAprobados(cursosAprobados.filter(curso => curso.id !== cursoId));
+    const eliminarCurso = async (cursoId) => {
+      const sesion = JSON.parse(localStorage.getItem('sesion'));
+      const idUsuario = sesion?.usuario?.id;
+      if (!idUsuario || !cursoId) return;
+
+      try {
+        const res = await fetch(
+          `http://localhost:5000/api/cursos-aprobados/borrar-cursos/${idUsuario}/${cursoId}`,
+          { method: 'DELETE' }
+        );
+        const data = await res.json();
+
+        if (res.ok) {
+          // Actualiza la lista local eliminando el curso
+          setCursosAprobados(prev => prev.filter(curso => curso.id !== cursoId));
+        } else {
+          alert(data.error || 'No se pudo eliminar el curso');
+        }
+      } catch (error) {
+        alert('Ocurrió un error al eliminar el curso');
+      }
     };
 
     const modoEdicion = (field) => {
-        setIsEditing(prev => ({ ...prev, [field]: true }));
-        setTempValues(prev => ({ ...prev, [field]: profile[field] }));
+      setIsEditing(prev => ({ ...prev, [field]: true }));
+      setTempValues(prev => ({
+        ...prev,
+        [field]: field === 'contraseña' ? '' : profile[field]
+      }));
     };
 
     const guardarValorEditado = (field) => {
@@ -167,7 +217,8 @@ export default function ProfilePanel() {
 
     const CampoPerfil = ({ label, field, icon: Icon, type = 'text', disabled = false }) => {
         const isCurrentlyEditing = isEditing[field];
-        const displayValue = field === 'contraseña' ? '••••••••' : profile[field];
+        //const displayValue = field === 'contraseña' ? '••••••••' : profile[field];
+        const displayValue = profile[field];
 
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200">
@@ -232,16 +283,82 @@ export default function ProfilePanel() {
     );
   };
 
+  const calcularCreditosTotales = async (idsCursos) => {
+    if (!idsCursos || idsCursos.length === 0) {
+      setCreditosTotales(0);
+      return;
+    }
+    try {
+      const res = await fetch('http://localhost:5000/api/cursos-aprobados/suma-creditos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ CURSOS_ID_CURSO: idsCursos })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCreditosTotales(data.total_creditos);
+      } else {
+        setCreditosTotales(0);
+      }
+    } catch (err) {
+      setCreditosTotales(0);
+    }
+  };
+
+  const guardarCambiosPerfil = async () => {
+    const sesion = JSON.parse(localStorage.getItem('sesion'));
+    const token = sesion?.token;
+    const idUsuario = sesion?.usuario?.id;
+
+
+    const body = {};
+    if (profile.nombre) body.nombres = profile.nombre;
+    if (profile.apellido) body.apellidos = profile.apellido;
+    if (profile.correo) body.correo = profile.correo;
+
+    
+    if (profile.contraseña && profile.contraseña !== '••••••••') {
+      body.nueva_contrasena = profile.contraseña;
+    }
+    console.log('Contraseña enviada:', body.nueva_contrasena);
+    console.log('Body:', body);
+    
+    try {
+      const res = await fetch('http://localhost:5000/api/usuarios/perfil', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        alert('Perfil actualizado exitosamente');
+  
+      } else {
+        alert(data.error || 'No se pudo actualizar el perfil');
+      }
+    } catch (error) {
+      alert('Ocurrió un error al actualizar el perfil');
+    }
+  };
+
+  useEffect(() => {
+    const idsCursos = cursosAprobados.map(curso => curso.id);
+    calcularCreditosTotales(idsCursos);
+  }, [cursosAprobados]);
+
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-gray-50 min-h-screen">
+    <div className=" mx-auto p-6 min-h-screen bg-gradient-to-bl from-gray-900 via-slate-800 to-blue-900">
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         {/* Header con botón de home */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-8 relative">
           <button
             onClick={handleGoHome}
             className="absolute top-4 right-4 p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-colors duration-200"
-            title="Volver al menú principal"
-          >
+            title="Volver al menú principal">
             <Home />
           </button>
           
@@ -333,18 +450,20 @@ export default function ProfilePanel() {
                 <select
                   value={cursoSeleccionado}
                   onChange={(e) => setCursoSeleccionado(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+                >
                   <option value="">Selecciona un curso...</option>
-                  {cursosDisponiblesParaAgregar.map(curso => (
-                    <option key={curso.id} value={curso.id}>
-                      {curso.nombre} ({curso.creditos} créditos)
+                  {cursosDisponibles.map(curso => (
+                    <option key={curso.ID_CURSO} value={curso.ID_CURSO}>
+                      {curso.NOMBRE_CURSO}
                     </option>
                   ))}
                 </select>
                 <button
                   onClick={agregarCurso}
                   disabled={!cursoSeleccionado}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200">
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+                >
                   Agregar
                 </button>
                 </div>
@@ -376,8 +495,7 @@ export default function ProfilePanel() {
                       <button
                         onClick={() => eliminarCurso(curso.id)}
                         className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                        title="Eliminar curso"
-                      >
+                        title="Eliminar curso">
                         <Trash />
                       </button>
                     </div>
@@ -390,7 +508,10 @@ export default function ProfilePanel() {
 
         {/* Guardar cambios*/}
         <div className="px-6 pb-6">
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2">
+          <button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+            onClick={guardarCambiosPerfil}
+          >
             <Guardar />
             <span>Guardar Todos los Cambios</span>
           </button>

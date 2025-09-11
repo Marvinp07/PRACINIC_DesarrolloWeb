@@ -265,7 +265,7 @@ export default function CrearPublicacion() {
   }, [publicacion.profesorNombre, publicacion.profesorApellido, tipoSeleccion]);
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-gray-50 min-h-screen">
+    <div className=" mx-auto p-6 bg-gradient-to-br from-emerald-950 via-green-950 to-slate-950 min-h-screen">
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-green-800 px-6 py-8 relative">

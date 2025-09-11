@@ -12,7 +12,7 @@ router.post("/crearComentario", async (req, res) => {
         }
 
         await pool.query(
-            "INSERT INTO Comentarios (PUBLICACIONES_ID_PUBLI, USUARIOS_ID_USUARIO, MENSAJE_COMENTARIO) VALUES (?, ?, ?)",
+            "INSERT INTO COMENTARIOS (PUBLICACIONES_ID_PUBLI, USUARIOS_ID_USUARIO, MENSAJE_COMENTARIO) VALUES (?, ?, ?)",
             [PUBLICACIONES_ID_PUBLI, USUARIOS_ID_USUARIO, MENSAJE_COMENTARIO]
         );
         res.status(201).json({ message: "Comentario creado con éxito" });
